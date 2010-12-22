@@ -37,6 +37,7 @@ controls mix = do
 data Contents = Contents { playback :: Maybe [(Channel, Volume)]
                          , capture :: Maybe [(Channel, Volume)]
                          }
+    deriving (Read, Show, Eq)
 
 data Volume = Volume { integer :: Integer
                      , dB :: Integer
@@ -44,6 +45,8 @@ data Volume = Volume { integer :: Integer
                      , dbRange :: (Integer, Integer)
                      , switch :: Maybe Bool
                      }
+    deriving (Read, Show, Eq)
+
 
 contents :: Control -> IO Contents
 contents c = do

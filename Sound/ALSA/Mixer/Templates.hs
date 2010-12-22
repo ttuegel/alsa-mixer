@@ -26,6 +26,7 @@ data Channel = Unknown
              | SideLeft
              | SideRight
              | RearCenter
+    deriving (Read, Show, Eq)
 
 instance Enum Channel where
     fromEnum Unknown = -1

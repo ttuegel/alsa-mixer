@@ -44,9 +44,7 @@ module Sound.ALSA.Mixer.Internal
     , getCaptureVolumeRange
     , getCaptureDbRange
     , setPlaybackVolumeRange
-    , setPlaybackDbRange
     , setCaptureVolumeRange
-    , setCaptureDbRange
     , getName
     , getIndex
     ) where
@@ -73,8 +71,8 @@ foreign import ccall "alsa/asoundlib.h &snd_mixer_close"
 foreign import ccall "alsa/asoundlib.h snd_mixer_attach"
   snd_mixer_attach :: Ptr MixerT -> CString -> IO CInt
 
-foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_alloca"
-  snd_mixer_selem_id_alloca :: Ptr (Ptr SimpleElementIdT) -> IO ()
+foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_malloc"
+  snd_mixer_selem_id_malloc :: Ptr (Ptr SimpleElementIdT) -> IO ()
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_register"
   snd_mixer_selem_register :: Ptr MixerT -> Ptr () -> Ptr () -> IO CInt
@@ -154,7 +152,7 @@ foreign import ccall "alsa/asoundlib.h &snd_mixer_selem_id_free"
 getId :: Element -> IO SimpleElementId
 getId pElem = do
     pId <- alloca $ \ppId -> do
-        snd_mixer_selem_id_alloca ppId
+        snd_mixer_selem_id_malloc ppId
         peek ppId
     snd_mixer_selem_get_id pElem pId
     newForeignPtr snd_mixer_selem_id_free pId
@@ -244,6 +242,4 @@ $(getRange "snd_mixer_selem_get_capture_volume_range" "getCaptureVolumeRange")
 $(getRange "snd_mixer_selem_get_capture_dB_range" "getCaptureDbRange")
 
 $(setRange "snd_mixer_selem_set_playback_volume_range" "setPlaybackVolumeRange")
-$(setRange "snd_mixer_selem_set_playback_dB_range" "setPlaybackDbRange")
 $(setRange "snd_mixer_selem_set_capture_volume_range" "setCaptureVolumeRange")
-$(setRange "snd_mixer_selem_set_capture_dB_range" "setCaptureDbRange")
