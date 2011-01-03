@@ -60,8 +60,6 @@ has = template frgn hask body
                                         return $ 1 == ret
                          |]
 
-
-
 getVol :: String -> String -> Q [Dec]
 getVol frgnStr = template frgn hask body frgnStr
   where frgn = [t| Ptr SimpleElementT -> CInt -> Ptr CLong -> IO CInt |]
@@ -162,8 +160,7 @@ getRange frgnStr = template frgn hask body frgnStr
                                    checkResult_ frgnStr ret
                                    cMin <- peek pMin
                                    cMax <- peek pMax
-                                   return $!
-                                       (fromIntegral cMin, fromIntegral cMax)
+                                   return (fromIntegral cMin, fromIntegral cMax)
                          |]
 
 setRange :: String -> String -> Q [Dec]

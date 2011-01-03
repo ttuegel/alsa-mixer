@@ -4,7 +4,7 @@ module Sound.ALSA.Mixer.Internal
     , SimpleElement()
     , SimpleElementId()
     , Channel(..)
-    , mono
+    , allChannels
     , elements
     , getMixerByName
     , isPlaybackMono
@@ -56,9 +56,6 @@ import Foreign.C.String ( CString )
 import Foreign.C.Types
 import Sound.ALSA.Exception ( checkResult_, throw )
 import Sound.ALSA.Mixer.Templates
-
-mono :: Channel
-mono = FrontLeft
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_open"
   snd_mixer_open :: Ptr (Ptr MixerT) -> IO CInt
@@ -158,13 +155,12 @@ getId pElem = do
     newForeignPtr snd_mixer_selem_id_free pId
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_get_name"
-  snd_mixer_selem_id_get_name :: Ptr SimpleElementIdT -> IO (Ptr CString)
+  snd_mixer_selem_id_get_name :: Ptr SimpleElementIdT -> IO CString
 
 getName :: SimpleElementId -> IO String
 getName fId = do
     withForeignPtr fId $ \pId -> do
-        pStr <- snd_mixer_selem_id_get_name pId
-        cStr <- peek pStr
+        cStr <- snd_mixer_selem_id_get_name pId
         bStr <- B.packCString cStr
         return $ B.unpack bStr
 

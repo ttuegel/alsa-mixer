@@ -13,7 +13,7 @@ Version:             0.1
 Synopsis:            Bindings to the ALSA simple mixer API.
 
 -- A longer description of the package.
--- Description:         
+Description:         This package provides bindings to the ALSA simple mixer API.
 
 -- The license under which the package is released.
 License:             BSD3
@@ -22,11 +22,11 @@ License:             BSD3
 License-file:        LICENSE
 
 -- The package author(s).
-Author:              Thomas Tuegel
+Author:              Thomas Tuegel <ttuegel@gmail.com>
 
 -- An email address to which users can send suggestions, bug reports,
 -- and patches.
-Maintainer:          ttuegel@gmail.com
+Maintainer:          Thomas Tuegel <ttuegel@gmail.com>
 
 -- A copyright notice.
 -- Copyright:           
@@ -40,7 +40,7 @@ Build-type:          Simple
 -- Extra-source-files:  
 
 -- Constraint on the version of Cabal needed to build this package.
-Cabal-version:       >=1.2
+Cabal-version:       >=1.6
 
 
 Library
