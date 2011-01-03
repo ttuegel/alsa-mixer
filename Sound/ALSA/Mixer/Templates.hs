@@ -16,41 +16,15 @@ type Element = Ptr ElemT
 type SimpleElementId = ForeignPtr SimpleElementIdT
 type SimpleElement = Ptr SimpleElementT
 
-data Channel = Unknown
-             | FrontLeft
-             | FrontRight
-             | RearLeft
-             | RearRight
-             | FrontCenter
-             | Woofer
-             | SideLeft
-             | SideRight
-             | RearCenter
+newtype Channel = Channel Integer
     deriving (Read, Show, Eq)
 
-instance Enum Channel where
-    fromEnum Unknown = -1
-    fromEnum FrontLeft = 0
-    fromEnum FrontRight = 1
-    fromEnum RearLeft = 2
-    fromEnum RearRight = 3
-    fromEnum FrontCenter = 4
-    fromEnum Woofer = 5
-    fromEnum SideLeft = 6
-    fromEnum SideRight = 7
-    fromEnum RearCenter = 8
+allChannels :: [Channel]
+allChannels = enumFromTo (Channel 0) (Channel 8)
 
-    toEnum (-1) = Unknown
-    toEnum 0 = FrontLeft
-    toEnum 1 = FrontRight
-    toEnum 2 = RearLeft
-    toEnum 3 = RearRight
-    toEnum 4 = FrontCenter
-    toEnum 5 = Woofer
-    toEnum 6 = SideLeft
-    toEnum 7 = SideRight
-    toEnum 8 = RearCenter
-    toEnum _ = error "Sound.ALSA.Mixer.Channel.toEnum: integer out of bounds."
+instance Enum Channel where
+    toEnum i = Channel $! fromIntegral i
+    fromEnum (Channel i) = fromIntegral i
 
 has :: String -> String -> Q [Dec]
 has = template frgn hask body
