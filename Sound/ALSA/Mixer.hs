@@ -1,11 +1,9 @@
 module Sound.ALSA.Mixer
-    ( Contents(..)
-    , Volume(..)
+    ( Volume(..)
     , Control()
     , contents
     , controls
     , channels
-    , getVolume
     , name
     , index
     , getMixerByName
@@ -19,16 +17,11 @@ import Foreign.C.Error ( Errno(..) )
 import Sound.ALSA.Exception ( catchErrno )
 import Sound.ALSA.Mixer.Internal
 
-data Control = Control SimpleElementId SimpleElement String Integer
-
-name :: Control -> String
-name (Control _ _ n _) = n
-
-index :: Control -> Integer
-index (Control _ _ _ i) = i
-
-selem :: Control -> SimpleElement
-selem (Control _ s _ _) = s
+data Control = Control { selem :: SimpleElement
+                       , seId :: SimpleElementId
+                       , index :: Integer
+                       , name :: String
+                       }
 
 controls :: Mixer -> IO [Control]
 controls mix = do
@@ -36,21 +29,128 @@ controls mix = do
     forM es $ \(idN, se) -> do
         n <- getName idN
         i <- getIndex idN
-        return $! Control idN se n i
+        return $! Control { selem = se
+                          , seId = idN
+                          , name = n
+                          , index = i
+                          }
 
-data ChannelMode = Playback | Capture
+data Mode = Playback | Capture
     deriving (Read, Show, Eq)
 
-type Contents = [(ChannelMode, Channel, Maybe Bool, Maybe Volume)]
+data Element e = Element { get :: IO e
+                         , set :: e -> IO ()
+                         }
 
-data Volume = Volume { integer :: Integer
-                     , dB :: Maybe Integer
-                     , integerRange :: (Integer, Integer)
-                     , dbRange :: Maybe (Integer, Integer)
+-- | This function does not check that the channel exists before constructing
+-- an 'Element'.  The caller must take care that 'mkSwitch' is not called
+-- for a non-existent channel.
+mkSwitch :: Control -> (Mode, Channel) -> IO (Maybe (Element Bool))
+mkSwitch cn (m, ch) = do
+    hasSw <- hasSwitch s
+    case hasSw of
+        False -> return Nothing
+        True -> return $ Just Element { get = getSwitch s ch, set = setSwitch s ch }
+  where s = selem cn
+        hasSwitch :: SimpleElement -> IO Bool
+        hasSwitch = case m of
+                        Playback -> hasPlaybackSwitch
+                        Capture -> hasCaptureSwitch
+        getSwitch :: SimpleElement -> Channel -> IO Bool
+        getSwitch = case m of
+                        Playback -> getPlaybackSwitch
+                        Capture -> getCaptureSwitch
+        setSwitch :: SimpleElement -> Channel -> Bool -> IO ()
+        setSwitch = case m of
+                        Playback -> setPlaybackSwitch
+                        Capture -> setCaptureSwitch
+
+mkVolume :: Control -> (Mode, Channel) -> Bool -> IO (Maybe (Element Volume))
+mkVolume cn (m, ch) db = do
+    hasV <- hasVolume s
+    case hasV of
+        False -> return Nothing
+        True -> case db of
+            False -> return ret 
+            True -> do
+                dBv <- catchInvalidAsNothing $ getVolume s ch
+                case dBv of
+                    Nothing -> return Nothing
+                    Just _ -> return ret
+  where s = selem cn
+        ret = Just Element { get = getVolume s ch
+                           , set = setVolume s ch
+                           }
+        hasVolume = case m of
+                        Playback -> hasPlaybackVolume
+                        Capture -> hasCaptureVolume
+        getVolume = case m of
+                        Playback -> getPlayback db
+                        Capture -> getCapture db
+        setVolume = case m of
+                        Playback -> setPlayback db
+                        Capture -> setCapture db
+      
+data Volume = Volume { value :: Integer
+                     , range :: (Integer, Integer)
                      }
     deriving (Read, Show, Eq)
 
-channels :: Control -> IO [(ChannelMode, Channel)]
+getPlayback :: Bool -> SimpleElement -> Channel -> IO Volume
+getPlayback db s ch = do
+    v <- getVolume s ch
+    (lo, hi) <- getRange s
+    return Volume { value = v, range = (lo, hi) }
+  where getVolume = case db of
+                        False -> getPlaybackVolume
+                        True -> getPlaybackDb
+        getRange = case db of
+                       False -> getPlaybackVolumeRange
+                       True -> getPlaybackDbRange
+
+
+getCapture :: Bool -> SimpleElement -> Channel -> IO Volume
+getCapture db s ch = do
+    v <- getVolume s ch
+    (lo, hi) <- getRange s
+    return Volume { value = v, range = (lo, hi) }
+  where getVolume = case db of
+                        False -> getCaptureVolume
+                        True -> getCaptureDb
+        getRange = case db of
+                       False -> getCaptureVolumeRange
+                       True -> getCaptureDbRange
+
+setPlayback :: Bool -> SimpleElement -> Channel -> Volume -> IO ()
+setPlayback db s ch v = do
+    setVolume s ch $ value v
+    --setRange s ch $ range v
+  where setVolume = case db of
+                        False -> setPlaybackVolume
+                        True -> setPlaybackDb
+        --setRange = case db of
+                       --False -> setPlaybackVolumeRange
+                       --True -> setPlaybackDbRange
+
+setCapture :: Bool -> SimpleElement -> Channel -> Volume -> IO ()
+setCapture db s ch v = do
+    setVolume s ch $ value v
+    --setRange s ch $ range v
+  where setVolume = case db of
+                        False -> setCaptureVolume
+                        True -> setCaptureDb
+        --setRange = case db of
+                       --False -> setCaptureVolumeRange
+                       --True -> setCaptureDbRange
+
+data Content = Content { mode :: Mode
+                       , channel :: Channel
+                       , switch :: Maybe (Element Bool)
+                       , volume :: Maybe (Element Volume)
+                       , dB :: Maybe (Element Volume)
+                       }
+
+channels :: Control -> IO [(Mode, Channel)]
 channels con = do
     hasPChan <- mapM (hasPlaybackChannel s) allChannels
     hasCChan <- mapM (hasCaptureChannel s) allChannels
@@ -60,66 +160,19 @@ channels con = do
                 (map (\x -> (Capture, x)) cChans)
     return chans
   where s = selem con
-
-getVolume :: Control -> ChannelMode -> Channel
-          -> IO (Maybe (Maybe Bool, Maybe Volume))
-getVolume con Playback chan = do
-    exist <- hasPlaybackChannel (selem con) chan
-    if exist then getVolume' con Playback chan else return Nothing
-getVolume con Capture chan = do
-    exist <- hasCaptureChannel (selem con) chan
-    if exist then getVolume' con Capture chan else return Nothing
-
-getVolume' :: Control -> ChannelMode -> Channel
-           -> IO (Maybe (Maybe Bool, Maybe Volume))
-getVolume' con Playback chan = do
-    let s = selem con
-    hasSw <- hasPlaybackSwitch s
-    sw <- if hasSw then liftM Just (getPlaybackSwitch s chan)
-                   else return Nothing
-    hasV <- hasPlaybackVolume s
-    v <- case hasV of
-        True -> do
-            i <- getPlaybackVolume s chan
-            d <- catchInvalidAsNothing $ getPlaybackDb s chan
-            ir <- getPlaybackVolumeRange s
-            dr <- catchInvalidAsNothing $ getPlaybackDbRange s
-            return $ Just $ Volume { integer = i
-                                   , dB = d
-                                   , integerRange = ir
-                                   , dbRange = dr
-                                   }
-        False -> return Nothing
-    return $! Just (sw, v)
-getVolume' con Capture chan = do
-    let s = selem con
-    hasSw <- hasCaptureSwitch s
-    sw <- if hasSw then liftM Just (getCaptureSwitch s chan)
-                   else return Nothing
-    hasV <- hasCaptureVolume s
-    v <- case hasV of
-        True -> do
-            i <- getCaptureVolume s chan
-            d <- catchInvalidAsNothing $ getCaptureDb s chan
-            ir <- getCaptureVolumeRange s
-            dr <- catchInvalidAsNothing $ getCaptureDbRange s
-            return $ Just $ Volume { integer = i
-                                   , dB = d
-                                   , integerRange = ir
-                                   , dbRange = dr
-                                   }
-        False -> return Nothing
-    return $! Just (sw, v)
-
 catchInvalidAsNothing a = catchErrno (Errno 22) (liftM Just a) (return Nothing)
 
-contents :: Control -> IO Contents
+contents :: Control -> IO [Content]
 contents c = do
     chans <- channels c
-    liftM catMaybes $ mapM worker chans
-  where worker (t, chan) = do
-            maybeV <- getVolume c t chan
-            case maybeV of
-                Nothing -> return Nothing
-                Just (sw, v) -> return $ Just (t, chan, sw, v)
-
+    mapM worker chans
+  where worker (m, ch) = do
+            sw <- mkSwitch c (m, ch)
+            v <- mkVolume c (m, ch) False
+            d <- mkVolume c (m, ch) True
+            return Content { mode = m
+                           , channel = ch
+                           , switch = sw
+                           , volume = v
+                           , dB = d
+                           }
