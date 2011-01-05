@@ -48,13 +48,13 @@ data Volume = Volume { getRange :: IO (Integer, Integer)
                      , value :: PerChannel Integer
                      }
 
-getChannel :: PerChannel x -> Channel -> IO (Maybe x)
-getChannel j@(Joined f _) _ = liftM Just f
-getChannel p@(PerChannel f _) c = liftM (lookup c) f
+getChannel :: Channel -> PerChannel x -> IO (Maybe x)
+getChannel _ j@(Joined f _) = liftM Just f
+getChannel c p@(PerChannel f _) = liftM (lookup c) f
 
-setChannel :: PerChannel x -> Channel -> x -> IO ()
-setChannel j@(Joined _ f) _ v = f v
-setChannel p@(PerChannel _ f) c v = f [(c, v)]
+setChannel :: Channel -> PerChannel x -> x -> IO ()
+setChannel _ j@(Joined _ f) v = f v
+setChannel c p@(PerChannel _ f) v = f [(c, v)]
 
 playback :: Either a (Maybe a, Maybe a) -> Maybe a
 playback (Left _) = Nothing
