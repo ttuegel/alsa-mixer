@@ -79,7 +79,9 @@ type Switch = PerChannel Bool
 -- channel, but each capability has only one range.
 data Volume = Volume { getRange :: IO (Integer, Integer)
                      , setRange :: (Integer, Integer) -> IO ()
+                     , getRangeDb :: IO (Integer, Integer)
                      , value :: PerChannel Integer
+                     , dB :: PerChannel Integer
                      }
 
 -- | Get the value associated with a particular channel, if that channel exists.
@@ -169,27 +171,48 @@ mkVolume se = do
     hasCaptV <- hasCaptureVolume se
     hasCaptVJ <- hasCaptureVolumeJoined se
     return $ case hasComV of
-        True -> Left $ playVolume { value = case hasPlayVJ of
-            True -> comJoinedVolume pChans
-            False -> comPerChannelVolume pChans }
+        True ->
+            let (v, d) =
+                    case hasPlayVJ of
+                        True -> ( comJoinedVolume pChans
+                                , comJoinedVolumeDb pChans
+                                )
+                        False -> ( comPerChannelVolume pChans
+                                 , comPerChannelVolumeDb pChans
+                                 )
+            in Left $ playVolume { value = v, dB = d }
         False ->
             let playVol = case hasPlayV of
                     False -> Nothing
-                    True -> Just $ playVolume { value = case hasPlayVJ of
-                        True -> playJoinedVolume pChans
-                        False -> playPerChannelVolume pChans }
+                    True ->
+                        let (v, d) =
+                                case hasPlayVJ of
+                                    True -> ( playJoinedVolume pChans
+                                            , playJoinedVolumeDb pChans
+                                            )
+                                    False -> ( playPerChannelVolume pChans
+                                             , playPerChannelVolumeDb pChans
+                                             )
+                        in Just $ playVolume { value = v, dB = d }
                 captVol = case hasCaptV of
                     False -> Nothing
-                    True -> Just $ captVolume { value = case hasCaptVJ of
-                        True -> captJoinedVolume cChans
-                        False -> captPerChannelVolume cChans }
+                    True ->
+                        let (v, d) =
+                                case hasCaptVJ of
+                                    True -> ( captJoinedVolume pChans
+                                            , captJoinedVolumeDb pChans
+                                            )
+                                    False -> ( captPerChannelVolume pChans
+                                             , captPerChannelVolumeDb pChans
+                                             )
+                        in Just $ captVolume { value = v, dB = d }
             in Right (playVol, captVol)
-  where joined fGet fSet chans =
+  where j fGet fSet chans =
             Joined { getJoined = fGet se (head chans)
                    , setJoined = fSet se (head chans)
                    , joinedChannels = chans
                    }
-        perChannel fGet fSet chans =
+        pc fGet fSet chans =
             PerChannel { getPerChannel = liftM (zip chans)
                             $ mapM (fGet se) chans
                        , setPerChannel = mapM_ (uncurry (fSet se))
@@ -197,18 +220,28 @@ mkVolume se = do
                        }
         playVolume = Volume { getRange = getPlaybackVolumeRange se
                             , setRange = setPlaybackVolumeRange se
+                            , getRangeDb = getPlaybackDbRange se
                             , value = undefined
+                            , dB = undefined
                             }
         captVolume = Volume { getRange = getCaptureVolumeRange se
                             , setRange = setCaptureVolumeRange se
+                            , getRangeDb = getCaptureDbRange se
                             , value = undefined
+                            , dB = undefined
                             }
-        comJoinedVolume = joined getPlaybackVolume setPlaybackVolume
-        comPerChannelVolume = perChannel getPlaybackVolume setPlaybackVolume
+        comJoinedVolume = j getPlaybackVolume setPlaybackVolume
+        comJoinedVolumeDb = j getPlaybackDb setPlaybackDb
+        comPerChannelVolume = pc getPlaybackVolume setPlaybackVolume
+        comPerChannelVolumeDb = pc getPlaybackDb setPlaybackDb
         playJoinedVolume = comJoinedVolume
         playPerChannelVolume = comPerChannelVolume
-        captJoinedVolume = joined getCaptureVolume setCaptureVolume
-        captPerChannelVolume = perChannel getCaptureVolume setCaptureVolume
+        playJoinedVolumeDb = comJoinedVolumeDb
+        playPerChannelVolumeDb = comPerChannelVolumeDb
+        captJoinedVolume = j getCaptureVolume setCaptureVolume
+        captPerChannelVolume = pc getCaptureVolume setCaptureVolume
+        captJoinedVolumeDb = j getCaptureDb setCaptureDb
+        captPerChannelVolumeDb = pc getCaptureDb setCaptureDb
 
 -- | All the 'Control' objects associated with a particular 'Mixer'.
 controls :: Mixer -> IO [Control]
