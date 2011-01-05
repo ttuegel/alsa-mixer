@@ -17,6 +17,7 @@ module Sound.ALSA.Mixer
     , getChannel
     , setChannel
     , getMixerByName
+    , getControlByName
     , Channel(..)
     ) where
 
@@ -215,3 +216,12 @@ controls mix = do
                           , switch = sw
                           , volume = v
                           }
+
+-- | Get the named 'Control', if it exists, from the named 'Mixer'.
+getControlByName :: String  -- ^ Mixer name
+                 -> String  -- ^ Control name
+                 -> IO (Maybe Control)
+getControlByName mixerName controlName = do
+    mix <- getMixerByName mixerName
+    cs <- controls mix
+    return $ lookup controlName $ zip (map name cs) cs
