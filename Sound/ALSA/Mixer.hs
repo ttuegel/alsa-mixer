@@ -3,6 +3,8 @@ module Sound.ALSA.Mixer
     , Control()
     , controls
     , channels
+    , joined
+    , perChannel
     , name
     , index
     , switch
@@ -18,7 +20,7 @@ module Sound.ALSA.Mixer
     , Channel(..)
     ) where
 
-import Control.Monad ( forM, liftM )
+import Control.Monad ( forM, liftM, when )
 import Data.Maybe ( catMaybes )
 import Debug.Trace
 import Foreign.C.Error ( Errno(..) )
@@ -34,17 +36,33 @@ data Control = Control { index :: Integer
                        , name :: String
                        , switch :: Either Switch (Maybe Switch, Maybe Switch)
                        , volume :: Either Volume (Maybe Volume, Maybe Volume)
-                       , channels :: ([Channel], [Channel])
                        }
 
 -- | 'PerChannel' represents a capability that with either a separate value for
 -- each channel or with a common value for all channels.
 data PerChannel e = Joined { getJoined :: IO e
                            , setJoined :: e -> IO ()
+                           , joinedChannels :: [Channel]
                            }
                   | PerChannel { getPerChannel :: IO [(Channel, e)]
                                , setPerChannel :: [(Channel, e)] -> IO ()
+                               , perChannels :: [Channel]
                                }
+
+-- | True if the 'PerChannel' object has a common value for all channels.
+joined :: PerChannel e -> Bool
+joined j@(Joined _ _ _) = True
+joined _ = False
+
+-- | True if the 'PerChannel' object has a separate value for each channel.
+perChannel :: PerChannel e -> Bool
+perChannel p@(PerChannel _ _ _) = True
+perChannel _ = False
+
+-- | All channels supported by a 'PerChannel' object.
+channels :: PerChannel e -> [Channel]
+channels p | joined p = joinedChannels p
+           | otherwise = perChannels p
 
 -- | 'Switch' represents a switch capability for controls and channels that can
 -- be muted and unmuted.
@@ -58,12 +76,14 @@ data Volume = Volume { getRange :: IO (Integer, Integer)
                      }
 
 getChannel :: Channel -> PerChannel x -> IO (Maybe x)
-getChannel _ j@(Joined f _) = liftM Just f
-getChannel c p@(PerChannel f _) = liftM (lookup c) f
+getChannel c p | joined p = case c `elem` channels p of
+                                True -> liftM Just $ getJoined p
+                                False -> return Nothing
+               | otherwise = liftM (lookup c) $ getPerChannel p
 
 setChannel :: Channel -> PerChannel x -> x -> IO ()
-setChannel _ j@(Joined _ f) v = f v
-setChannel c p@(PerChannel _ f) v = f [(c, v)]
+setChannel c p v | joined p = when (c `elem` channels p) $ setJoined p v
+                 | otherwise = setPerChannel p [(c, v)]
 
 -- | For a given capability, which may be for either playback or capture, or
 -- common to both, return the playback capability if it exists.
@@ -113,11 +133,13 @@ mkSwitch se = do
   where joined fGet fSet chans =
             Joined { getJoined = fGet se (head chans)
                    , setJoined = fSet se (head chans)
+                   , joinedChannels = chans
                    }
         perChannel fGet fSet chans =
             PerChannel { getPerChannel = liftM (zip chans)
                             $ mapM (fGet se) chans
                        , setPerChannel = mapM_ (uncurry (fSet se))
+                       , perChannels = chans
                        }
         comJoinedSwitch = joined getPlaybackSwitch setPlaybackSwitch
         comPerChannelSwitch = perChannel getPlaybackSwitch setPlaybackSwitch
@@ -156,11 +178,13 @@ mkVolume se = do
   where joined fGet fSet chans =
             Joined { getJoined = fGet se (head chans)
                    , setJoined = fSet se (head chans)
+                   , joinedChannels = chans
                    }
         perChannel fGet fSet chans =
             PerChannel { getPerChannel = liftM (zip chans)
                             $ mapM (fGet se) chans
                        , setPerChannel = mapM_ (uncurry (fSet se))
+                       , perChannels = chans
                        }
         playVolume = Volume { getRange = getPlaybackVolumeRange se
                             , setRange = setPlaybackVolumeRange se
@@ -186,14 +210,8 @@ controls mix = do
         i <- getIndex idN
         sw <- mkSwitch se
         v <- mkVolume se
-        hasPlayChan <- mapM (hasPlaybackChannel se) allChannels
-        hasCaptChan <- mapM (hasCaptureChannel se) allChannels
-        let pChans = map fst $ filter snd $ zip allChannels hasPlayChan
-            cChans = map fst $ filter snd $ zip allChannels hasCaptChan
         return $! Control { name = n
                           , index = i
                           , switch = sw
                           , volume = v
-                          , channels = (pChans, cChans)
-                          , intern = (mix, se)
                           }
