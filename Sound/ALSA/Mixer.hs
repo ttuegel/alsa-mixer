@@ -76,12 +76,14 @@ data Volume = Volume { getRange :: IO (Integer, Integer)
                      , value :: PerChannel Integer
                      }
 
+-- | Get the value associated with a particular channel, if that channel exists.
 getChannel :: Channel -> PerChannel x -> IO (Maybe x)
 getChannel c p | joined p = case c `elem` channels p of
                                 True -> liftM Just $ getJoined p
                                 False -> return Nothing
                | otherwise = liftM (lookup c) $ getPerChannel p
 
+-- | Set the value associated with a particular channel, if that channel exists.
 setChannel :: Channel -> PerChannel x -> x -> IO ()
 setChannel c p v | joined p = when (c `elem` channels p) $ setJoined p v
                  | otherwise = setPerChannel p [(c, v)]
