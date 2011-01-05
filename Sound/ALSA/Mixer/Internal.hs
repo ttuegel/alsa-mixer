@@ -87,7 +87,7 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_elem_next"
   snd_mixer_elem_next :: Element -> IO Element
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_find_selem"
-  snd_mixer_find_selem :: Ptr MixerT -> Ptr SimpleElementIdT -> IO SimpleElement
+  snd_mixer_find_selem :: Ptr MixerT -> Ptr SimpleElementIdT -> IO (Ptr SimpleElementT)
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_get_id"
   snd_mixer_selem_get_id :: Element -> Ptr SimpleElementIdT -> IO ()
@@ -141,7 +141,7 @@ simpleElement fMix pElem = do
         pSElem <- withForeignPtr fId $ snd_mixer_find_selem pMix
         if pSElem == nullPtr
             then throw "snd_mixer_find_selem" eNOENT
-            else return (fId, pSElem)
+            else return (fId, (fMix, pSElem))
 
 foreign import ccall "alsa/asoundlib.h &snd_mixer_selem_id_free"
   snd_mixer_selem_id_free :: FunPtr (Ptr SimpleElementIdT -> IO ())
@@ -186,12 +186,13 @@ $(has "snd_mixer_selem_has_playback_switch_joined" "hasPlaybackSwitchJoined")
 $(has "snd_mixer_selem_has_capture_switch" "hasCaptureSwitch")
 $(has "snd_mixer_selem_has_capture_switch_joined" "hasCaptureSwitchJoined")
 
-has2 :: (a -> b -> IO CInt) -> a -> b -> IO Bool
-has2 f x y = do
-    h <- f x y
+has2 :: (Ptr SimpleElementT -> b -> IO CInt) -> SimpleElement -> b -> IO Bool
+has2 f (fMix, pElem) y = do
+    h <- f pElem y
+    touchForeignPtr fMix
     return $! h == 1
 
-hasChannel :: (a -> CInt -> IO CInt) -> a -> Channel -> IO Bool
+hasChannel :: (Ptr SimpleElementT -> CInt -> IO CInt) -> SimpleElement -> Channel -> IO Bool
 hasChannel f x chan = has2 f x $ fromIntegral $ fromEnum chan
 
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_has_playback_channel"

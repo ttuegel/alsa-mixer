@@ -25,13 +25,12 @@ import Foreign.C.Error ( Errno(..) )
 import Sound.ALSA.Exception ( catchErrno )
 import Sound.ALSA.Mixer.Internal
 
-data Control = Control { selem :: SimpleElement
-                       , seId :: SimpleElementId
-                       , index :: Integer
+data Control = Control { index :: Integer
                        , name :: String
                        , switch :: Either Switch (Maybe Switch, Maybe Switch)
                        , volume :: Either Volume (Maybe Volume, Maybe Volume)
                        , channels :: ([Channel], [Channel])
+                       , intern :: (Mixer, SimpleElement)
                        }
 
 type Switch = PerChannel Bool
@@ -174,11 +173,10 @@ controls mix = do
         hasCaptChan <- mapM (hasCaptureChannel se) allChannels
         let pChans = map fst $ filter snd $ zip allChannels hasPlayChan
             cChans = map fst $ filter snd $ zip allChannels hasCaptChan
-        return $! Control { selem = se
-                          , seId = idN
-                          , name = n
+        return $! Control { name = n
                           , index = i
                           , switch = sw
                           , volume = v
                           , channels = (pChans, cChans)
+                          , intern = (mix, se)
                           }
