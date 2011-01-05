@@ -35,7 +35,6 @@ data Control = Control { index :: Integer
                        , switch :: Either Switch (Maybe Switch, Maybe Switch)
                        , volume :: Either Volume (Maybe Volume, Maybe Volume)
                        , channels :: ([Channel], [Channel])
-                       , intern :: (Mixer, SimpleElement)
                        }
 
 -- | 'PerChannel' represents a capability that with either a separate value for
