@@ -21,6 +21,7 @@ module Sound.ALSA.Mixer
     , capture
       -- ** PerChannels
     , channels
+    , allChannels
     , joined
     , perChannel
     , getChannel

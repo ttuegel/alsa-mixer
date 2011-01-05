@@ -57,40 +57,16 @@ import Foreign.C.Types
 import Sound.ALSA.Exception ( checkResult_, throw )
 import Sound.ALSA.Mixer.Templates
 
+-----------------------------------------------------------------------
+-- open
+-- --------------------------------------------------------------------
 foreign import ccall "alsa/asoundlib.h snd_mixer_open"
   snd_mixer_open :: Ptr (Ptr MixerT) -> IO CInt
 
--- Static address import for finalizer. Suppression of the return type may not
--- be a good idea, but the workaround involves lots of C.
+-- Static address import for finalizer. Suppression of the return type may
+-- not be a good idea, but the workaround involves lots of C.
 foreign import ccall "alsa/asoundlib.h &snd_mixer_close"
   snd_mixer_close :: FunPtr (Ptr MixerT -> IO ()) 
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_attach"
-  snd_mixer_attach :: Ptr MixerT -> CString -> IO CInt
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_malloc"
-  snd_mixer_selem_id_malloc :: Ptr (Ptr SimpleElementIdT) -> IO ()
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_selem_register"
-  snd_mixer_selem_register :: Ptr MixerT -> Ptr () -> Ptr () -> IO CInt
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_load"
-  snd_mixer_load :: Ptr MixerT -> IO CInt
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_first_elem"
-  snd_mixer_first_elem :: Ptr MixerT -> IO Element
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_last_elem"
-  snd_mixer_last_elem :: Ptr MixerT -> IO Element
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_elem_next"
-  snd_mixer_elem_next :: Element -> IO Element
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_find_selem"
-  snd_mixer_find_selem :: Ptr MixerT -> Ptr SimpleElementIdT -> IO (Ptr SimpleElementT)
-
-foreign import ccall "alsa/asoundlib.h snd_mixer_selem_get_id"
-  snd_mixer_selem_get_id :: Element -> Ptr SimpleElementIdT -> IO ()
 
 open :: IO Mixer
 open = do
@@ -100,11 +76,26 @@ open = do
         peek ppmix
     newForeignPtr snd_mixer_close pmix
 
+-----------------------------------------------------------------------
+-- attach
+-- --------------------------------------------------------------------
+foreign import ccall "alsa/asoundlib.h snd_mixer_attach"
+  snd_mixer_attach :: Ptr MixerT -> CString -> IO CInt
+
 attach :: Mixer -> String -> IO ()
 attach fmix name = do
     B.useAsCString (B.pack name) $ \pName -> do
         withForeignPtr fmix $ \pmix -> do
             snd_mixer_attach pmix pName >>= checkResult_ "snd_mixer_attach"
+
+-----------------------------------------------------------------------
+-- load
+-- --------------------------------------------------------------------
+foreign import ccall "alsa/asoundlib.h snd_mixer_load"
+  snd_mixer_load :: Ptr MixerT -> IO CInt
+
+foreign import ccall "alsa/asoundlib.h snd_mixer_selem_register"
+  snd_mixer_selem_register :: Ptr MixerT -> Ptr () -> Ptr () -> IO CInt
 
 load :: Mixer -> IO ()
 load fmix = do
@@ -113,12 +104,37 @@ load fmix = do
             >>= checkResult_ "snd_mixer_selem_register"
         snd_mixer_load pmix >>= checkResult_ "snd_mixer_load"
 
-getMixerByName :: String -> IO Mixer
-getMixerByName name = do
-    mix <- open
-    attach mix name
-    load mix
-    return mix
+-----------------------------------------------------------------------
+-- getId
+-- --------------------------------------------------------------------
+foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_malloc"
+  snd_mixer_selem_id_malloc :: Ptr (Ptr SimpleElementIdT) -> IO ()
+
+foreign import ccall "alsa/asoundlib.h &snd_mixer_selem_id_free"
+  snd_mixer_selem_id_free :: FunPtr (Ptr SimpleElementIdT -> IO ())
+
+foreign import ccall "alsa/asoundlib.h snd_mixer_selem_get_id"
+  snd_mixer_selem_get_id :: Element -> Ptr SimpleElementIdT -> IO ()
+
+getId :: Element -> IO SimpleElementId
+getId pElem = do
+    pId <- alloca $ \ppId -> do
+        snd_mixer_selem_id_malloc ppId
+        peek ppId
+    snd_mixer_selem_get_id pElem pId
+    newForeignPtr snd_mixer_selem_id_free pId
+
+-----------------------------------------------------------------------
+-- elements
+-- --------------------------------------------------------------------
+foreign import ccall "alsa/asoundlib.h snd_mixer_first_elem"
+  snd_mixer_first_elem :: Ptr MixerT -> IO Element
+
+foreign import ccall "alsa/asoundlib.h snd_mixer_last_elem"
+  snd_mixer_last_elem :: Ptr MixerT -> IO Element
+
+foreign import ccall "alsa/asoundlib.h snd_mixer_elem_next"
+  snd_mixer_elem_next :: Element -> IO Element
 
 elements :: Mixer -> IO [(SimpleElementId, SimpleElement)]
 elements fMix = do
@@ -134,6 +150,12 @@ elements fMix = do
                     pNext <- snd_mixer_elem_next pThis
                     elements' pNext (pThis : xs) pLast
 
+-----------------------------------------------------------------------
+-- simpleElement
+-- --------------------------------------------------------------------
+foreign import ccall "alsa/asoundlib.h snd_mixer_find_selem"
+  snd_mixer_find_selem :: Ptr MixerT -> Ptr SimpleElementIdT -> IO (Ptr SimpleElementT)
+
 simpleElement :: Mixer -> Element -> IO (SimpleElementId, SimpleElement)
 simpleElement fMix pElem = do
     withForeignPtr fMix $ \pMix -> do
@@ -143,17 +165,9 @@ simpleElement fMix pElem = do
             then throw "snd_mixer_find_selem" eNOENT
             else return (fId, (fMix, pSElem))
 
-foreign import ccall "alsa/asoundlib.h &snd_mixer_selem_id_free"
-  snd_mixer_selem_id_free :: FunPtr (Ptr SimpleElementIdT -> IO ())
-
-getId :: Element -> IO SimpleElementId
-getId pElem = do
-    pId <- alloca $ \ppId -> do
-        snd_mixer_selem_id_malloc ppId
-        peek ppId
-    snd_mixer_selem_get_id pElem pId
-    newForeignPtr snd_mixer_selem_id_free pId
-
+-----------------------------------------------------------------------
+-- getName
+-- --------------------------------------------------------------------
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_get_name"
   snd_mixer_selem_id_get_name :: Ptr SimpleElementIdT -> IO CString
 
@@ -164,6 +178,9 @@ getName fId = do
         bStr <- B.packCString cStr
         return $ B.unpack bStr
 
+-----------------------------------------------------------------------
+-- getIndex
+-- --------------------------------------------------------------------
 foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_get_index"
   snd_mixer_selem_id_get_index :: Ptr SimpleElementIdT -> IO CInt
 
@@ -172,6 +189,18 @@ getIndex fId = do
     withForeignPtr fId $ \pId -> do
         cIndex <- snd_mixer_selem_id_get_index pId
         return $! fromIntegral cIndex
+
+-----------------------------------------------------------------------
+-- getMixerByName
+-- --------------------------------------------------------------------
+getMixerByName :: String -> IO Mixer
+getMixerByName name = do
+    mix <- open
+    attach mix name
+    load mix
+    return mix
+
+-----------------------------------------------------------------------
 
 $(has "snd_mixer_selem_is_playback_mono" "isPlaybackMono")
 $(has "snd_mixer_selem_is_capture_mono" "isCaptureMono")
