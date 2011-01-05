@@ -1,10 +1,17 @@
 module Sound.ALSA.Mixer
-    ( Volume(..)
-    , Control()
+    ( -- * Types
+      Control()
+    , Mixer()
+    , Channel(..)
+    , PerChannel(..)
+    , Volume(..)
+    , Switch()
+      -- * Functions
+      -- ** Mixers
     , controls
-    , channels
-    , joined
-    , perChannel
+    , getMixerByName
+      -- ** Controls
+    , getControlByName
     , name
     , index
     , switch
@@ -12,18 +19,16 @@ module Sound.ALSA.Mixer
     , common
     , playback
     , capture
-    , Switch()
-    , PerChannel(..)
+      -- ** PerChannels
+    , channels
+    , joined
+    , perChannel
     , getChannel
     , setChannel
-    , getMixerByName
-    , getControlByName
-    , Channel(..)
     ) where
 
 import Control.Monad ( forM, liftM, when )
 import Data.Maybe ( catMaybes )
-import Debug.Trace
 import Foreign.C.Error ( Errno(..) )
 import Sound.ALSA.Exception ( catchErrno )
 import Sound.ALSA.Mixer.Internal
