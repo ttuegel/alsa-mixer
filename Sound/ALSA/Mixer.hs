@@ -25,6 +25,11 @@ import Foreign.C.Error ( Errno(..) )
 import Sound.ALSA.Exception ( catchErrno )
 import Sound.ALSA.Mixer.Internal
 
+-- | 'Control' represents one of the controls belonging to an ALSA mixer
+-- element. Each control has a number of playback and capture channels.
+-- The control may also have a switch and/or a volume capability associated
+-- with it. The capability can be common to both playback and capture, or
+-- there can be separate capabilities for each.
 data Control = Control { index :: Integer
                        , name :: String
                        , switch :: Either Switch (Maybe Switch, Maybe Switch)
@@ -33,8 +38,8 @@ data Control = Control { index :: Integer
                        , intern :: (Mixer, SimpleElement)
                        }
 
-type Switch = PerChannel Bool
-
+-- | 'PerChannel' represents a capability that with either a separate value for
+-- each channel or with a common value for all channels.
 data PerChannel e = Joined { getJoined :: IO e
                            , setJoined :: e -> IO ()
                            }
@@ -42,6 +47,12 @@ data PerChannel e = Joined { getJoined :: IO e
                                , setPerChannel :: [(Channel, e)] -> IO ()
                                }
 
+-- | 'Switch' represents a switch capability for controls and channels that can
+-- be muted and unmuted.
+type Switch = PerChannel Bool
+
+-- | 'Volume' represents a volume capability. There may be a separate value per
+-- channel, but each capability has only one range.
 data Volume = Volume { getRange :: IO (Integer, Integer)
                      , setRange :: (Integer, Integer) -> IO ()
                      , value :: PerChannel Integer
@@ -55,14 +66,20 @@ setChannel :: Channel -> PerChannel x -> x -> IO ()
 setChannel _ j@(Joined _ f) v = f v
 setChannel c p@(PerChannel _ f) v = f [(c, v)]
 
+-- | For a given capability, which may be for either playback or capture, or
+-- common to both, return the playback capability if it exists.
 playback :: Either a (Maybe a, Maybe a) -> Maybe a
 playback (Left _) = Nothing
 playback (Right (x, _)) = x
 
+-- | For a given capability, which may be for either playback or capture, or
+-- common to both, return the capture capability if it exists.
 capture :: Either a (Maybe a, Maybe a) -> Maybe a
 capture (Left _) = Nothing
 capture (Right (_, x)) = x
 
+-- | For a given capability, which may be for either playback or capture, or
+-- common to both, return the common capability if it exists.
 common :: Either a (Maybe a, Maybe a) -> Maybe a
 common (Left x) = Just x
 common (Right _) = Nothing
@@ -161,6 +178,7 @@ mkVolume se = do
         captJoinedVolume = joined getCaptureVolume setCaptureVolume
         captPerChannelVolume = perChannel getCaptureVolume setCaptureVolume
 
+-- | All the 'Control' objects associated with a particular 'Mixer'.
 controls :: Mixer -> IO [Control]
 controls mix = do
     es <- elements mix
