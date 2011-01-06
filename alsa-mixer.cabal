@@ -11,6 +11,10 @@ Category:            Sound
 Build-type:          Simple
 Cabal-version:       >=1.6
 
+Source-repository head
+  Type:     darcs
+  Location: http://community.haskell.org/~ttuegel/alsa-mixer
+
 Library
   Exposed-modules:     Sound.ALSA.Mixer
   Other-modules:       Sound.ALSA.Mixer.Internal, Sound.ALSA.Mixer.Templates
