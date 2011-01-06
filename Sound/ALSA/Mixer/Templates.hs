@@ -54,6 +54,7 @@ instance Enum Channel where
     toEnum 8 = RearCenter
     toEnum x = OtherChannel x
 
+-- | All channels understood by ALSA.
 allChannels :: [Channel]
 allChannels = map toEnum $ enumFromTo 0 31
 

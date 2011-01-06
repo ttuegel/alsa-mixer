@@ -1,6 +1,6 @@
 module Sound.ALSA.Mixer
     ( -- * Types
-      Control()
+      Control(..)
     , Mixer()
     , Channel(..)
     , PerChannel(..)
@@ -12,10 +12,6 @@ module Sound.ALSA.Mixer
     , getMixerByName
       -- ** Controls
     , getControlByName
-    , name
-    , index
-    , switch
-    , volume
     , common
     , playback
     , capture
@@ -253,7 +249,8 @@ controls mix = do
                           , volume = v
                           }
 
--- | Get the named 'Control', if it exists, from the named 'Mixer'.
+-- | Get the named 'Control', if it exists, from the named 'Mixer'. Will
+-- throw an exception if the named 'Mixer' does not exist.
 getControlByName :: String  -- ^ Mixer name
                  -> String  -- ^ Control name
                  -> IO (Maybe Control)

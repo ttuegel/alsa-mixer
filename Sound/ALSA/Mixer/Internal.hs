@@ -186,6 +186,8 @@ getIndex fId = withForeignPtr fId $ \pId -> do
 -----------------------------------------------------------------------
 -- getMixerByName
 -- --------------------------------------------------------------------
+-- | Returns the named 'Mixer'. Will throw an exception if the named mixer
+-- cannot be found. A mixer named \"default\" should always exist.
 getMixerByName :: String -> IO Mixer
 getMixerByName name = do
     mix <- open
