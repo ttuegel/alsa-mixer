@@ -86,9 +86,10 @@ data Volume = Volume { getRange :: IO (Integer, Integer)
 
 -- | Get the value associated with a particular channel, if that channel exists.
 getChannel :: Channel -> PerChannel x -> IO (Maybe x)
-getChannel c p | joined p = case c `elem` channels p of
-                                True -> liftM Just $ getJoined p
-                                False -> return Nothing
+getChannel c p | joined p = let r | c `elem` channels p =
+                                      liftM Just $ getJoined p
+                                  | otherwise = return Nothing
+                            in r
                | otherwise = liftM (lookup c) $ getPerChannel p
 
 -- | Set the value associated with a particular channel, if that channel exists.
@@ -125,22 +126,21 @@ mkSwitch se = do
     hasPlaySwJ <- hasPlaybackSwitchJoined se
     hasCaptSw <- hasCaptureSwitch se
     hasCaptSwJ <- hasCaptureSwitchJoined se
-    return $ case hasComSw of
-        True -> Left $ case hasPlaySwJ of
-            True -> comJoinedSwitch pChans
-            False -> comPerChannelSwitch pChans
-        False ->
-            let playSw = case hasPlaySw of
-                    False -> Nothing
-                    True -> Just $ case hasPlaySwJ of
-                        True -> playJoinedSwitch pChans
-                        False -> playPerChannelSwitch pChans
-                captSw = case hasCaptSw of
-                    False -> Nothing
-                    True -> Just $ case hasCaptSwJ of
-                        True -> captJoinedSwitch cChans
-                        False -> captPerChannelSwitch cChans
-            in Right (playSw, captSw)
+    return $ if hasComSw 
+                then Left $ if hasPlaySwJ
+                              then comJoinedSwitch pChans
+                              else comPerChannelSwitch pChans
+                else let playSw | not hasPlaySw = Nothing
+                                | otherwise = Just
+                                    $ if hasPlaySwJ
+                                        then playJoinedSwitch pChans
+                                        else playPerChannelSwitch pChans
+                         captSw | not hasCaptSw = Nothing
+                                | otherwise = Just
+                                    $ if hasCaptSwJ
+                                        then captJoinedSwitch cChans
+                                        else captPerChannelSwitch cChans
+                     in Right (playSw, captSw)
   where joined fGet fSet chans =
             Joined { getJoined = fGet se (head chans)
                    , setJoined = fSet se (head chans)
@@ -170,43 +170,38 @@ mkVolume se = do
     hasPlayVJ <- hasPlaybackVolumeJoined se
     hasCaptV <- hasCaptureVolume se
     hasCaptVJ <- hasCaptureVolumeJoined se
-    return $ case hasComV of
-        True ->
-            let (v, d) =
-                    case hasPlayVJ of
-                        True -> ( comJoinedVolume pChans
-                                , comJoinedVolumeDb pChans
-                                )
-                        False -> ( comPerChannelVolume pChans
-                                 , comPerChannelVolumeDb pChans
-                                 )
-            in Left $ playVolume { value = v, dB = d }
-        False ->
-            let playVol = case hasPlayV of
-                    False -> Nothing
-                    True ->
-                        let (v, d) =
-                                case hasPlayVJ of
-                                    True -> ( playJoinedVolume pChans
-                                            , playJoinedVolumeDb pChans
-                                            )
-                                    False -> ( playPerChannelVolume pChans
-                                             , playPerChannelVolumeDb pChans
-                                             )
-                        in Just $ playVolume { value = v, dB = d }
-                captVol = case hasCaptV of
-                    False -> Nothing
-                    True ->
-                        let (v, d) =
-                                case hasCaptVJ of
-                                    True -> ( captJoinedVolume pChans
-                                            , captJoinedVolumeDb pChans
-                                            )
-                                    False -> ( captPerChannelVolume pChans
-                                             , captPerChannelVolumeDb pChans
-                                             )
-                        in Just $ captVolume { value = v, dB = d }
-            in Right (playVol, captVol)
+    return $
+        if hasComV
+           then let (v, d) | hasPlayVJ = ( comJoinedVol pChans
+                                         , comJoinedDb pChans
+                                         )
+                           | otherwise = ( comPerChannelVol pChans
+                                         , comPerChannelDb pChans
+                                         )
+                in Left $ playVolume { value = v, dB = d }
+           else let playVol | not hasPlayV = Nothing
+                            | otherwise =
+                                let (v, d) | hasPlayVJ =
+                                               ( playJoinedVol pChans
+                                               , playJoinedDb pChans
+                                               )
+                                           | otherwise =
+                                               ( playPerChannelVol pChans
+                                               , playPerChannelDb pChans
+                                               )
+                                in Just playVolume { value = v, dB = d }
+                    captVol | not hasCaptV = Nothing
+                            | otherwise =
+                                let (v, d) | hasCaptVJ =
+                                               ( captJoinedVol pChans
+                                               , captJoinedDb pChans
+                                               )
+                                           | otherwise =
+                                               ( captPerChannelVol pChans
+                                               , captPerChannelDb pChans
+                                               )
+                                in Just $ captVolume { value = v, dB = d }
+                in Right (playVol, captVol)
   where j fGet fSet chans =
             Joined { getJoined = fGet se (head chans)
                    , setJoined = fSet se (head chans)
@@ -230,18 +225,18 @@ mkVolume se = do
                             , value = undefined
                             , dB = undefined
                             }
-        comJoinedVolume = j getPlaybackVolume setPlaybackVolume
-        comJoinedVolumeDb = j getPlaybackDb setPlaybackDb
-        comPerChannelVolume = pc getPlaybackVolume setPlaybackVolume
-        comPerChannelVolumeDb = pc getPlaybackDb setPlaybackDb
-        playJoinedVolume = comJoinedVolume
-        playPerChannelVolume = comPerChannelVolume
-        playJoinedVolumeDb = comJoinedVolumeDb
-        playPerChannelVolumeDb = comPerChannelVolumeDb
-        captJoinedVolume = j getCaptureVolume setCaptureVolume
-        captPerChannelVolume = pc getCaptureVolume setCaptureVolume
-        captJoinedVolumeDb = j getCaptureDb setCaptureDb
-        captPerChannelVolumeDb = pc getCaptureDb setCaptureDb
+        comJoinedVol = j getPlaybackVolume setPlaybackVolume
+        comJoinedDb = j getPlaybackDb setPlaybackDb
+        comPerChannelVol = pc getPlaybackVolume setPlaybackVolume
+        comPerChannelDb = pc getPlaybackDb setPlaybackDb
+        playJoinedVol = comJoinedVol
+        playPerChannelVol = comPerChannelVol
+        playJoinedDb = comJoinedDb
+        playPerChannelDb = comPerChannelDb
+        captJoinedVol = j getCaptureVolume setCaptureVolume
+        captPerChannelVol = pc getCaptureVolume setCaptureVolume
+        captJoinedDb = j getCaptureDb setCaptureDb
+        captPerChannelDb = pc getCaptureDb setCaptureDb
 
 -- | All the 'Control' objects associated with a particular 'Mixer'.
 controls :: Mixer -> IO [Control]

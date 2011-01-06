@@ -167,7 +167,7 @@ getRange :: String -> String -> Q [Dec]
 getRange frgnStr = template frgn hask body frgnStr
   where frgn = [t| Ptr SimpleElementT -> Ptr CLong -> Ptr CLong -> IO CInt |]
         hask = [t| SimpleElement -> IO (Integer, Integer) |]
-        body frgnName = [| \(fMix, pElem) -> do
+        body frgnName = [| \(fMix, pElem) ->
                                alloca $ \pMin ->
                                  alloca $ \pMax -> do
                                    ret <- $(varE frgnName) pElem pMin pMax

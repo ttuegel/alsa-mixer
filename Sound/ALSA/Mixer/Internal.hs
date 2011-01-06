@@ -83,9 +83,9 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_attach"
   snd_mixer_attach :: Ptr MixerT -> CString -> IO CInt
 
 attach :: Mixer -> String -> IO ()
-attach fmix name = do
-    B.useAsCString (B.pack name) $ \pName -> do
-        withForeignPtr fmix $ \pmix -> do
+attach fmix name =
+    B.useAsCString (B.pack name) $ \pName ->
+        withForeignPtr fmix $ \pmix ->
             snd_mixer_attach pmix pName >>= checkResult_ "snd_mixer_attach"
 
 -----------------------------------------------------------------------
@@ -98,11 +98,10 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_selem_register"
   snd_mixer_selem_register :: Ptr MixerT -> Ptr () -> Ptr () -> IO CInt
 
 load :: Mixer -> IO ()
-load fmix = do
-    withForeignPtr fmix $ \pmix -> do
-        snd_mixer_selem_register pmix nullPtr nullPtr
-            >>= checkResult_ "snd_mixer_selem_register"
-        snd_mixer_load pmix >>= checkResult_ "snd_mixer_load"
+load fmix = withForeignPtr fmix $ \pmix -> do
+    snd_mixer_selem_register pmix nullPtr nullPtr
+        >>= checkResult_ "snd_mixer_selem_register"
+    snd_mixer_load pmix >>= checkResult_ "snd_mixer_load"
 
 -----------------------------------------------------------------------
 -- getId
@@ -137,18 +136,15 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_elem_next"
   snd_mixer_elem_next :: Element -> IO Element
 
 elements :: Mixer -> IO [(SimpleElementId, SimpleElement)]
-elements fMix = do
-    withForeignPtr fMix $ \pMix -> do
-        pFirst <- snd_mixer_first_elem pMix
-        pLast <- snd_mixer_last_elem pMix
-        es <- elements' pFirst [] pLast
-        mapM (simpleElement fMix) es
-  where elements' pThis xs pLast =
-            case pThis == pLast of
-                True -> return $ pThis : xs
-                False -> do
-                    pNext <- snd_mixer_elem_next pThis
-                    elements' pNext (pThis : xs) pLast
+elements fMix = withForeignPtr fMix $ \pMix -> do
+    pFirst <- snd_mixer_first_elem pMix
+    pLast <- snd_mixer_last_elem pMix
+    es <- elements' pFirst [] pLast
+    mapM (simpleElement fMix) es
+  where elements' pThis xs pLast | pThis == pLast = return $ pThis : xs
+                                 | otherwise = do
+                                     pNext <- snd_mixer_elem_next pThis
+                                     elements' pNext (pThis : xs) pLast
 
 -----------------------------------------------------------------------
 -- simpleElement
@@ -157,13 +153,12 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_find_selem"
   snd_mixer_find_selem :: Ptr MixerT -> Ptr SimpleElementIdT -> IO (Ptr SimpleElementT)
 
 simpleElement :: Mixer -> Element -> IO (SimpleElementId, SimpleElement)
-simpleElement fMix pElem = do
-    withForeignPtr fMix $ \pMix -> do
-        fId <- getId pElem
-        pSElem <- withForeignPtr fId $ snd_mixer_find_selem pMix
-        if pSElem == nullPtr
-            then throw "snd_mixer_find_selem" eNOENT
-            else return (fId, (fMix, pSElem))
+simpleElement fMix pElem = withForeignPtr fMix $ \pMix -> do
+    fId <- getId pElem
+    pSElem <- withForeignPtr fId $ snd_mixer_find_selem pMix
+    if pSElem == nullPtr
+        then throw "snd_mixer_find_selem" eNOENT
+        else return (fId, (fMix, pSElem))
 
 -----------------------------------------------------------------------
 -- getName
@@ -172,11 +167,10 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_get_name"
   snd_mixer_selem_id_get_name :: Ptr SimpleElementIdT -> IO CString
 
 getName :: SimpleElementId -> IO String
-getName fId = do
-    withForeignPtr fId $ \pId -> do
-        cStr <- snd_mixer_selem_id_get_name pId
-        bStr <- B.packCString cStr
-        return $ B.unpack bStr
+getName fId = withForeignPtr fId $ \pId -> do
+    cStr <- snd_mixer_selem_id_get_name pId
+    bStr <- B.packCString cStr
+    return $ B.unpack bStr
 
 -----------------------------------------------------------------------
 -- getIndex
@@ -185,10 +179,9 @@ foreign import ccall "alsa/asoundlib.h snd_mixer_selem_id_get_index"
   snd_mixer_selem_id_get_index :: Ptr SimpleElementIdT -> IO CInt
 
 getIndex :: SimpleElementId -> IO Integer
-getIndex fId = do
-    withForeignPtr fId $ \pId -> do
-        cIndex <- snd_mixer_selem_id_get_index pId
-        return $! fromIntegral cIndex
+getIndex fId = withForeignPtr fId $ \pId -> do
+    cIndex <- snd_mixer_selem_id_get_index pId
+    return $! fromIntegral cIndex
 
 -----------------------------------------------------------------------
 -- getMixerByName
