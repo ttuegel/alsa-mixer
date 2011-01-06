@@ -1,3 +1,19 @@
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Sound.ALSA.Mixer
+-- Copyright   :  (c) Thomas Tuegel 2011
+-- License     :  BSD
+--
+-- Maintainer  :  Thomas Tuegel <ttuegel@gmail.com>
+-- Stability   :  experimental
+-- Portability :  non-portable (Linux only)
+--
+-- This library provides bindings to the Advanced Linux Sound Architecture
+-- (ALSA) library API. The portability of this library is limited to
+-- systems with ALSA (i.e., Linux systems).
+--
+-----------------------------------------------------------------------------
+
 module Sound.ALSA.Mixer
     ( -- * Types
       Control(..)
@@ -22,6 +38,13 @@ module Sound.ALSA.Mixer
     , perChannel
     , getChannel
     , setChannel
+      -- * Examples
+
+      -- ** Getting and setting the volume of a Control
+      -- $exampleVolume
+
+      -- ** Getting and setting the switch of a Control
+      -- $exampleSwitch
     ) where
 
 import Control.Monad ( forM, liftM, when )
@@ -74,10 +97,17 @@ type Switch = PerChannel Bool
 -- | 'Volume' represents a volume capability. There may be a separate value per
 -- channel, but each capability has only one range.
 data Volume = Volume { getRange :: IO (Integer, Integer)
+                       -- ^ Returns the minimum and maximum volumes (unitless).
                      , setRange :: (Integer, Integer) -> IO ()
+                       -- ^ Sets the minimum and maximum volumes (unitless).
                      , getRangeDb :: IO (Integer, Integer)
+                       -- ^ Returns the minimum and maximum volumes in
+                       -- hundredths of a decibel.
                      , value :: PerChannel Integer
+                       -- ^ Volume values for each channel.
                      , dB :: PerChannel Integer
+                       -- ^ Volume values for each channel in hundredths of
+                       -- a decibel.
                      }
 
 -- | Get the value associated with a particular channel, if that channel exists.
@@ -258,3 +288,31 @@ getControlByName mixerName controlName = do
     mix <- getMixerByName mixerName
     cs <- controls mix
     return $ lookup controlName $ zip (map name cs) cs
+
+{- $exampleVolume
+This example demonstrates the method of accessing the volume of a Control.
+The example function reads the volume and increases it by the value supplied.
+
+>   changeVolumeBy :: Integer -> IO ()
+>   changeVolumeBy i = do
+>       Just control <- getControlByName "default" "Master"
+>       let Just playbackVolume = playback $ volume control
+>       (min, max) <- getRange playbackVolume
+>       Just vol <- getChannel FrontLeft $ value $ playbackVolume
+>       when ((i > 0 && vol < max) || (i < 0 && vol > min))
+>           $ setChannel FrontLeft (value $ playbackVolume) $ vol + i
+
+-}
+
+{- $exampleSwitch
+This example demonstrates the method of accessing the switch of a Control.
+The example function reads the value of the switch and toggles it.
+
+>   toggleMute :: IO ()
+>   toggleMute = do
+>       Just control <- getControlByName "default" "Master"
+>       let Just playbackSwitch = playback $ switch control
+>       Just sw <- getChannel FrontLeft playbackSwitch
+>       setChannel FrontLeft playbackSwitch $ not sw
+
+-}
