@@ -1,5 +1,5 @@
 Name:                alsa-mixer
-Version:             0.1
+Version:             0.1.1
 Synopsis:            Bindings to the ALSA simple mixer API.
 Description:         This package provides bindings to the ALSA simple mixer API.
 License:             BSD3
@@ -17,9 +17,7 @@ Source-repository head
 
 Library
   Exposed-modules:     Sound.ALSA.Mixer
-  Other-modules:       Sound.ALSA.Mixer.Internal, Sound.ALSA.Mixer.Templates
+  Other-modules:       Sound.ALSA.Mixer.Internal
   Extra-libraries:     asound
   Build-depends:       base == 4.*,
-                       alsa-core == 0.5.*,
-                       bytestring == 0.9.*,
-                       template-haskell
+                       alsa-core == 0.5.*
