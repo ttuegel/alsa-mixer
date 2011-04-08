@@ -18,6 +18,7 @@ Source-repository head
 Library
   Exposed-modules:     Sound.ALSA.Mixer
   Other-modules:       Sound.ALSA.Mixer.Internal
+  Build-tools:         c2hs
   Extra-libraries:     asound
   Build-depends:       base == 4.*,
                        alsa-core == 0.5.*
