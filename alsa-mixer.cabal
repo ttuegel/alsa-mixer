@@ -12,8 +12,8 @@ Build-type:          Simple
 Cabal-version:       >=1.6
 
 Source-repository head
-  Type:     darcs
-  Location: http://community.haskell.org/~ttuegel/alsa-mixer
+  Type:     git
+  Location: https://github.com/ttuegel/alsa-mixer.git
 
 Library
   Exposed-modules:     Sound.ALSA.Mixer
