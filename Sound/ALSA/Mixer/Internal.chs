@@ -6,7 +6,7 @@ module Sound.ALSA.Mixer.Internal
     , Channel(..)
     , allChannels
     , elements
-    , getMixerByName
+    , withMixer
     , isPlaybackMono
     , isCaptureMono
     , hasPlaybackChannel
@@ -49,6 +49,8 @@ module Sound.ALSA.Mixer.Internal
     , getIndex
     ) where
 
+import Control.Monad (liftM)
+import Control.Exception (bracket)
 import Foreign
 import Foreign.C.Error ( eNOENT )
 import Foreign.C.String
@@ -58,7 +60,7 @@ import Sound.ALSA.Exception ( checkResult_, throw )
 #include "alsa/asoundlib.h"
 {#context lib = "asoundlib" #}
 
-{#pointer *snd_mixer_t as Mixer foreign#}
+{#pointer *snd_mixer_t as Mixer newtype#}
 {#pointer *snd_mixer_elem_t as Element#}
 {#pointer *snd_mixer_selem_id_t as SimpleElementId foreign#}
 type SimpleElement = (Mixer, Element)
@@ -84,29 +86,26 @@ allChannels = map toEnum $ enumFromTo (fromEnum FrontLeft) (fromEnum RearCenter)
 -- open
 -- --------------------------------------------------------------------
 
-{#fun snd_mixer_open as open
-    { mallocMixer- `Mixer' peekMixer*
-    , modeZero- `Int' fromIntegral- } -> `Int' checkOpen*- #}
+foreign import ccall safe "alsa/asoundlib.h snd_mixer_open"
+  open_ :: Ptr (Ptr Mixer) -> CInt -> IO CInt
 
-mallocMixer f = do
-    pm <- malloc
-    f pm
+open :: IO Mixer
+open = withPtr $ \ppm ->
+  do open_ ppm (fromIntegral 0) >>= checkResult_ "snd_mixer_open"
+     liftM Mixer $ peek ppm
 
-modeZero f = f $ fromIntegral 0
-checkOpen = checkResult_ "snd_mixer_open"
-peekMixer pm = peek pm >>= newForeignPtr snd_mixer_close
+withPtr :: (Ptr (Ptr a) -> IO a) -> IO a
+withPtr = bracket malloc free
 
--- Static address import for finalizer. Suppression of the return type may
--- not be a good idea, but the workaround involves lots of C.
-foreign import ccall "alsa/asoundlib.h &snd_mixer_close"
-  snd_mixer_close :: FunPtr (Ptr () -> IO ())
+foreign import ccall "alsa/asoundlib.h snd_mixer_close"
+  freeMixer :: Ptr Mixer -> IO ()
 
 -----------------------------------------------------------------------
 -- attach
 -- --------------------------------------------------------------------
 
 {#fun snd_mixer_attach as attach
-    { withForeignPtr* `Mixer', `String' } -> `Int' checkAttach*- #}
+    { id `Mixer', `String' } -> `Int' checkAttach*- #}
 
 checkAttach = checkResult_ "snd_mixer_attach"
 
@@ -115,12 +114,12 @@ checkAttach = checkResult_ "snd_mixer_attach"
 -- --------------------------------------------------------------------
 
 {#fun snd_mixer_load as ^
-    { withForeignPtr* `Mixer' } -> `Int' checkSndMixerLoad*- #}
+    { id `Mixer' } -> `Int' checkSndMixerLoad*- #}
 
 checkSndMixerLoad = checkResult_ "snd_mixer_load"
 
 {#fun snd_mixer_selem_register as ^
-    { withForeignPtr* `Mixer'
+    { id `Mixer'
     , id `Ptr ()'
     , id `Ptr (Ptr ())' } -> `Int' checkSndMixerSelemRegister*- #}
 
@@ -157,10 +156,10 @@ getId e = do
 -- --------------------------------------------------------------------
 
 {#fun snd_mixer_first_elem as ^
-    { withForeignPtr* `Mixer' } -> `Element' id #}
+    { id `Mixer' } -> `Element' id #}
 
 {#fun snd_mixer_last_elem as ^
-    { withForeignPtr* `Mixer' } -> `Element' id #}
+    { id `Mixer' } -> `Element' id #}
 
 {#fun snd_mixer_elem_next as ^
     { id `Element' } -> `Element' id #}
@@ -181,7 +180,7 @@ elements fMix = do
 -- --------------------------------------------------------------------
 
 {#fun snd_mixer_find_selem as ^
-    { withForeignPtr* `Mixer'
+    { id `Mixer'
     , withForeignPtr* `SimpleElementId' } -> `Element' id #}
 
 simpleElement :: Mixer -> Element -> IO (SimpleElementId, SimpleElement)
@@ -210,14 +209,16 @@ simpleElement fMix pElem = do
 -- getMixerByName
 -- --------------------------------------------------------------------
 
--- | Returns the named 'Mixer'. Will throw an exception if the named mixer
--- cannot be found. A mixer named \"default\" should always exist.
-getMixerByName :: String -> IO Mixer
-getMixerByName name = do
-    mix <- open
-    attach mix name
-    load mix
-    return mix
+-- | Perform an 'IO' action with the named mixer. An exception will be
+-- thrown if the named mixer cannot be found. A mixer named \"default\"
+-- should always exist.
+withMixer :: String -> (Mixer -> IO a) -> IO a
+withMixer name f = bracket (do m <- open
+                               attach m name
+                               load m
+                               return m)
+                           (\(Mixer m) -> freeMixer m)
+                           f
 
 -----------------------------------------------------------------------
 -- utilities
@@ -228,14 +229,11 @@ cToBool = toBool
 cFromBool = fromBool
 
 withSimpleElement :: SimpleElement -> (Element -> IO a) -> IO a
-withSimpleElement (m, s) f = do
-    r <- f s
-    touchForeignPtr m
-    return r
+withSimpleElement (m, s) f = f s
 
 channelToC = toEnum . fromEnum
 
-cToIntegral = (>>= return . fromIntegral) . peek 
+cToIntegral = (>>= return . fromIntegral) . peek
 
 cFromIntegral :: Integer -> (Ptr CLong -> IO a) -> IO a
 cFromIntegral = with . fromIntegral

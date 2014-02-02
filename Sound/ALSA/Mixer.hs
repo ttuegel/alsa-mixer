@@ -25,7 +25,7 @@ module Sound.ALSA.Mixer
       -- * Functions
       -- ** Mixers
     , controls
-    , getMixerByName
+    , withMixer
       -- ** Controls
     , getControlByName
     , common
@@ -152,7 +152,7 @@ mkSwitch se = do
     hasPlaySwJ <- hasPlaybackSwitchJoined se
     hasCaptSw <- hasCaptureSwitch se
     hasCaptSwJ <- hasCaptureSwitchJoined se
-    return $ if hasComSw 
+    return $ if hasComSw
                 then Left $ if hasPlaySwJ
                               then comJoinedSwitch pChans
                               else comPerChannelSwitch pChans
@@ -279,13 +279,11 @@ controls mix = do
                           , volume = v
                           }
 
--- | Get the named 'Control', if it exists, from the named 'Mixer'. Will
--- throw an exception if the named 'Mixer' does not exist.
-getControlByName :: String  -- ^ Mixer name
+-- | Get the named 'Control', if it exists, from the named 'Mixer'.
+getControlByName :: Mixer   -- ^ Mixer
                  -> String  -- ^ Control name
                  -> IO (Maybe Control)
-getControlByName mixerName controlName = do
-    mix <- getMixerByName mixerName
+getControlByName mix controlName = do
     cs <- controls mix
     return $ lookup controlName $ zip (map name cs) cs
 
@@ -294,13 +292,14 @@ This example demonstrates the method of accessing the volume of a Control.
 The example function reads the volume and increases it by the value supplied.
 
 >   changeVolumeBy :: Integer -> IO ()
->   changeVolumeBy i = do
->       Just control <- getControlByName "default" "Master"
->       let Just playbackVolume = playback $ volume control
->       (min, max) <- getRange playbackVolume
->       Just vol <- getChannel FrontLeft $ value $ playbackVolume
->       when ((i > 0 && vol < max) || (i < 0 && vol > min))
->           $ setChannel FrontLeft (value $ playbackVolume) $ vol + i
+>   changeVolumeBy i =
+>       withMixer "default" $ \mixer ->
+>         do Just control <- getControlByName mixer "Master"
+>            let Just playbackVolume = playback $ volume control
+>            (min, max) <- getRange playbackVolume
+>            Just vol <- getChannel FrontLeft $ value $ playbackVolume
+>            when ((i > 0 && vol < max) || (i < 0 && vol > min))
+>              $ setChannel FrontLeft (value $ playbackVolume) $ vol + i
 
 -}
 
@@ -309,10 +308,11 @@ This example demonstrates the method of accessing the switch of a Control.
 The example function reads the value of the switch and toggles it.
 
 >   toggleMute :: IO ()
->   toggleMute = do
->       Just control <- getControlByName "default" "Master"
->       let Just playbackSwitch = playback $ switch control
->       Just sw <- getChannel FrontLeft playbackSwitch
->       setChannel FrontLeft playbackSwitch $ not sw
+>   toggleMute =
+>       withMixer "default" $ \mixer ->
+>         do Just control <- getControlByName "default" "Master"
+>            let Just playbackSwitch = playback $ switch control
+>            Just sw <- getChannel FrontLeft playbackSwitch
+>            setChannel FrontLeft playbackSwitch $ not sw
 
 -}
