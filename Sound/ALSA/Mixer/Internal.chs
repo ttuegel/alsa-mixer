@@ -49,13 +49,14 @@ module Sound.ALSA.Mixer.Internal
     , getIndex
     ) where
 
-import Control.Monad (liftM)
+import Control.Monad (liftM, when)
 import Control.Exception (bracket)
 import Foreign
 import Foreign.C.Error ( eNOENT )
 import Foreign.C.String
 import Foreign.C.Types
 import Sound.ALSA.Exception ( checkResult_, throw )
+import System.Posix.Process (getProcessID)
 
 #include "alsa/asoundlib.h"
 {#context lib = "asoundlib" #}
@@ -216,9 +217,12 @@ withMixer :: String -> (Mixer -> IO a) -> IO a
 withMixer name f = bracket (do m <- open
                                attach m name
                                load m
-                               return m)
-                           (\(Mixer m) -> freeMixer m)
-                           f
+                               pid <- getProcessID
+                               return (pid, m))
+                           (\(creatorPID, Mixer m) ->
+                              do myPID <- getProcessID
+                                 when (myPID == creatorPID) $ freeMixer m)
+                           (f . snd)
 
 -----------------------------------------------------------------------
 -- utilities

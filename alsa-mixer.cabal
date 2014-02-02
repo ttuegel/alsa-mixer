@@ -21,4 +21,5 @@ Library
   Build-tools:         c2hs
   Extra-libraries:     asound
   Build-depends:       base == 4.*,
-                       alsa-core == 0.5.*
+                       alsa-core == 0.5.*,
+                       unix == 2.6.*
