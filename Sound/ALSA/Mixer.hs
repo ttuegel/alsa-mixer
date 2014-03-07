@@ -310,7 +310,7 @@ The example function reads the value of the switch and toggles it.
 >   toggleMute :: IO ()
 >   toggleMute =
 >       withMixer "default" $ \mixer ->
->         do Just control <- getControlByName "default" "Master"
+>         do Just control <- getControlByName mixer "Master"
 >            let Just playbackSwitch = playback $ switch control
 >            Just sw <- getChannel FrontLeft playbackSwitch
 >            setChannel FrontLeft playbackSwitch $ not sw
