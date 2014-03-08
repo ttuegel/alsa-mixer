@@ -1,5 +1,5 @@
 Name:                alsa-mixer
-Version:             0.2.0
+Version:             0.2.0.1
 Synopsis:            Bindings to the ALSA simple mixer API.
 Description:         This package provides bindings to the ALSA simple mixer API.
 License:             BSD3
