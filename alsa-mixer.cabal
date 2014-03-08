@@ -10,6 +10,9 @@ Copyright:           Thomas Tuegel
 Category:            Sound
 Build-type:          Simple
 Cabal-version:       >=1.6
+Homepage:            https://github.com/ttuegel/alsa-mixer
+Bug-reports:         https://github.com/ttuegel/alsa-mixer/issues
+Extra-source-files:  changelog
 
 Source-repository head
   Type:     git

@@ -1,0 +1,4 @@
+0.2.0 Thomas Tuegel <ttuegel@gmail.com> 2014-03-02
+    * Only release mixer from creating process
+    * Use 'withMixer' to manage resource usage
+    * Remove old TemplateHaskell definitions
