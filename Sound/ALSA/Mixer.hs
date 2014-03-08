@@ -10,7 +10,8 @@
 --
 -- This library provides bindings to the Advanced Linux Sound Architecture
 -- (ALSA) library API. The portability of this library is limited to
--- systems with ALSA (i.e., Linux systems).
+-- systems with ALSA (i.e., Linux systems). The functions in this library
+-- throw errors of type 'Sound.ALSA.Exception.T' on failure.
 --
 -----------------------------------------------------------------------------
 

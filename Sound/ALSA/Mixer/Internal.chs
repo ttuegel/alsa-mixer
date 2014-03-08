@@ -210,9 +210,9 @@ simpleElement fMix pElem = do
 -- getMixerByName
 -- --------------------------------------------------------------------
 
--- | Perform an 'IO' action with the named mixer. An exception will be
--- thrown if the named mixer cannot be found. A mixer named \"default\"
--- should always exist.
+-- | Perform an 'IO' action with the named mixer. An exception of type
+-- 'Sound.ALSA.Exception.T' will be thrown if the named mixer cannot be
+-- found. A mixer named \"default\" should always exist.
 withMixer :: String -> (Mixer -> IO a) -> IO a
 withMixer name f = bracket (do m <- open
                                attach m name
