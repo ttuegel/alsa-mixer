@@ -25,4 +25,4 @@ Library
   Extra-libraries:     asound
   Build-depends:       base == 4.*,
                        alsa-core == 0.5.*,
-                       unix == 2.6.*
+                       unix >= 2.6 && < 3
