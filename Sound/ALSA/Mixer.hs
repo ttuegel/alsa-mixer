@@ -220,12 +220,12 @@ mkVolume se = do
                     captVol | not hasCaptV = Nothing
                             | otherwise =
                                 let (v, d) | hasCaptVJ =
-                                               ( captJoinedVol pChans
-                                               , captJoinedDb pChans
+                                               ( captJoinedVol cChans
+                                               , captJoinedDb cChans
                                                )
                                            | otherwise =
-                                               ( captPerChannelVol pChans
-                                               , captPerChannelDb pChans
+                                               ( captPerChannelVol cChans
+                                               , captPerChannelDb cChans
                                                )
                                 in Just $ captVolume { value = v, dB = d }
                 in Right (playVol, captVol)
