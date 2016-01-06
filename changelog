@@ -1,3 +1,6 @@
+0.2.0.2 Thomas Tuegel <ttuegel@gmail.com> 2014-04-15
+    * Relax version constraint on `unix' dependency
+
 0.2.0.1 Thomas Tuegel <ttuegel@gmail.com> 2014-03-08
     * Correct documentation
 
