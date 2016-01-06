@@ -1,21 +1,12 @@
-{ pkgs ? (import <nixpkgs> {}) }:
-
-let
-  #inherit (pkgs) haskellPackages;
-  haskellPackages = pkgs.haskellPackages_ghc782;
-  c2hs = pkgs.haskellPackages_ghc763.c2hs; # Does not build yet with GHC 7.8
-in
-with haskellPackages;
-cabal.mkDerivation (self: {
+{ mkDerivation, alsa-core, alsaLib, base, c2hs, stdenv, unix }:
+mkDerivation {
   pname = "alsa-mixer";
-  version = "0.2.0";
+  version = "0.2.0.2";
   src = ./.;
-  buildDepends = [ alsaCore ];
-  buildTools = [ c2hs cabalInstall ];
-  extraLibraries = [ pkgs.alsaLib ];
-  meta = {
-    description = "Bindings to the ALSA simple mixer API";
-    license = self.stdenv.lib.licenses.bsd3;
-    platforms = self.ghc.meta.platforms;
-  };
-})
+  libraryHaskellDepends = [ alsa-core base unix ];
+  librarySystemDepends = [ alsaLib ];
+  libraryToolDepends = [ c2hs ];
+  homepage = "https://github.com/ttuegel/alsa-mixer";
+  description = "Bindings to the ALSA simple mixer API";
+  license = stdenv.lib.licenses.bsd3;
+}
