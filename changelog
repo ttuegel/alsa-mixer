@@ -1,3 +1,6 @@
+0.3.0 Thomas Tuegel <ttuegel@mailbox.org> 2018-12-09
+    * Use C types in exported interface (#6)
+
 0.2.0.3 Thomas Tuegel <ttuegel@gmail.com> 2016-01-06
     * Use capture channel to get capture volume (#4)
 
