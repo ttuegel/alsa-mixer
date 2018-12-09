@@ -23,6 +23,8 @@ module Sound.ALSA.Mixer
     , PerChannel(..)
     , Volume(..)
     , Switch()
+    , CUInt
+    , CLong
       -- * Functions
       -- ** Mixers
     , controls
@@ -51,6 +53,7 @@ module Sound.ALSA.Mixer
 import Control.Monad ( forM, liftM, when )
 import Data.Maybe ( catMaybes )
 import Foreign.C.Error ( Errno(..) )
+import Foreign.C.Types
 import Sound.ALSA.Exception ( catchErrno )
 import Sound.ALSA.Mixer.Internal
 
@@ -59,7 +62,7 @@ import Sound.ALSA.Mixer.Internal
 -- The control may also have a switch and/or a volume capability associated
 -- with it. The capability can be common to both playback and capture, or
 -- there can be separate capabilities for each.
-data Control = Control { index :: Integer
+data Control = Control { index :: CUInt
                        , name :: String
                        , switch :: Either Switch (Maybe Switch, Maybe Switch)
                        , volume :: Either Volume (Maybe Volume, Maybe Volume)
@@ -97,16 +100,16 @@ type Switch = PerChannel Bool
 
 -- | 'Volume' represents a volume capability. There may be a separate value per
 -- channel, but each capability has only one range.
-data Volume = Volume { getRange :: IO (Integer, Integer)
+data Volume = Volume { getRange :: IO (CLong, CLong)
                        -- ^ Returns the minimum and maximum volumes (unitless).
-                     , setRange :: (Integer, Integer) -> IO ()
+                     , setRange :: (CLong, CLong) -> IO ()
                        -- ^ Sets the minimum and maximum volumes (unitless).
-                     , getRangeDb :: IO (Integer, Integer)
+                     , getRangeDb :: IO (CLong, CLong)
                        -- ^ Returns the minimum and maximum volumes in
                        -- hundredths of a decibel.
-                     , value :: PerChannel Integer
+                     , value :: PerChannel CLong
                        -- ^ Volume values for each channel.
-                     , dB :: PerChannel Integer
+                     , dB :: PerChannel CLong
                        -- ^ Volume values for each channel in hundredths of
                        -- a decibel.
                      }
@@ -292,7 +295,7 @@ getControlByName mix controlName = do
 This example demonstrates the method of accessing the volume of a Control.
 The example function reads the volume and increases it by the value supplied.
 
->   changeVolumeBy :: Integer -> IO ()
+>   changeVolumeBy :: CLong -> IO ()
 >   changeVolumeBy i =
 >       withMixer "default" $ \mixer ->
 >         do Just control <- getControlByName mixer "Master"

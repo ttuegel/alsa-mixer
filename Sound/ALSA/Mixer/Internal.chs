@@ -204,7 +204,7 @@ simpleElement fMix pElem = do
 -- --------------------------------------------------------------------
 
 {#fun snd_mixer_selem_id_get_index as getIndex
-    { withForeignPtr* `SimpleElementId' } -> `Integer' fromIntegral #}
+    { withForeignPtr* `SimpleElementId' } -> `CUInt' #}
 
 -----------------------------------------------------------------------
 -- getMixerByName
@@ -236,11 +236,6 @@ withSimpleElement :: SimpleElement -> (Element -> IO a) -> IO a
 withSimpleElement (m, s) f = f s
 
 channelToC = toEnum . fromEnum
-
-cToIntegral = (>>= return . fromIntegral) . peek
-
-cFromIntegral :: Integer -> (Ptr CLong -> IO a) -> IO a
-cFromIntegral = with . fromIntegral
 
 negOne f = f $! negate 1
 
@@ -299,28 +294,28 @@ negOne f = f $! negate 1
 {#fun snd_mixer_selem_get_playback_volume as getPlaybackVolume
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetPlaybackVolume*- #}
+    , alloca- `CLong' peek* } -> `Int' checkGetPlaybackVolume*- #}
 
 checkGetPlaybackVolume = checkResult_ "snd_mixer_selem_get_playback_volume"
 
 {#fun snd_mixer_selem_get_capture_volume as getCaptureVolume
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetCaptureVolume*- #}
+    , alloca- `CLong' peek* } -> `Int' checkGetCaptureVolume*- #}
 
 checkGetCaptureVolume = checkResult_ "snd_mixer_selem_get_capture_volume"
 
 {#fun snd_mixer_selem_get_playback_dB as getPlaybackDb
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , alloca- `Integer' cToIntegral* } -> `Int' checkPlaybackDb*- #}
+    , alloca- `CLong' peek* } -> `Int' checkPlaybackDb*- #}
 
 checkPlaybackDb = checkResult_ "snd_mixer_selem_get_playback_dB"
 
 {#fun snd_mixer_selem_get_capture_dB as getCaptureDb
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , alloca- `Integer' cToIntegral* } -> `Int' checkCaptureDb*- #}
+    , alloca- `CLong' peek* } -> `Int' checkCaptureDb*- #}
 
 checkCaptureDb = checkResult_ "snd_mixer_selem_get_capture_dB"
 
@@ -342,29 +337,29 @@ checkCaptureSwitch = checkResult_ "snd_mixer_selem_get_capture_switch"
 
 {#fun snd_mixer_selem_get_playback_volume_range as getPlaybackVolumeRange
     { withSimpleElement* `SimpleElement'
-    , alloca- `Integer' cToIntegral*
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetPlaybackVolumeRange*- #}
+    , alloca- `CLong' peek*
+    , alloca- `CLong' peek* } -> `Int' checkGetPlaybackVolumeRange*- #}
 
 checkGetPlaybackVolumeRange = checkResult_ "snd_mixer_selem_get_playback_volume_range"
 
 {#fun snd_mixer_selem_get_capture_volume_range as getCaptureVolumeRange
     { withSimpleElement* `SimpleElement'
-    , alloca- `Integer' cToIntegral*
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetCaptureVolumeRange*- #}
+    , alloca- `CLong' peek*
+    , alloca- `CLong' peek* } -> `Int' checkGetCaptureVolumeRange*- #}
 
 checkGetCaptureVolumeRange = checkResult_ "snd_mixer_selem_get_capture_volume_range"
 
 {#fun snd_mixer_selem_get_playback_dB_range as getPlaybackDbRange
     { withSimpleElement* `SimpleElement'
-    , alloca- `Integer' cToIntegral*
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetPlaybackDbRange*- #}
+    , alloca- `CLong' peek*
+    , alloca- `CLong' peek* } -> `Int' checkGetPlaybackDbRange*- #}
 
 checkGetPlaybackDbRange = checkResult_ "snd_mixer_selem_get_playback_dB_range"
 
 {#fun snd_mixer_selem_get_capture_dB_range as getCaptureDbRange
     { withSimpleElement* `SimpleElement'
-    , alloca- `Integer' cToIntegral*
-    , alloca- `Integer' cToIntegral* } -> `Int' checkGetCaptureDbRange*- #}
+    , alloca- `CLong' peek*
+    , alloca- `CLong' peek* } -> `Int' checkGetCaptureDbRange*- #}
 
 checkGetCaptureDbRange = checkResult_ "snd_mixer_selem_get_capture_dB_range"
 
@@ -375,21 +370,21 @@ checkGetCaptureDbRange = checkResult_ "snd_mixer_selem_get_capture_dB_range"
 {#fun snd_mixer_selem_set_playback_volume as setPlaybackVolume
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , fromIntegral `Integer' } -> `Int' checkSetPlaybackVolume*- #}
+    , `CLong' } -> `Int' checkSetPlaybackVolume*- #}
 
 checkSetPlaybackVolume = checkResult_ "snd_mixer_selem_set_playback_volume"
 
 {#fun snd_mixer_selem_set_capture_volume as setCaptureVolume
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , fromIntegral `Integer' } -> `Int' checkSetCaptureVolume*- #}
+    , `CLong' } -> `Int' checkSetCaptureVolume*- #}
 
 checkSetCaptureVolume = checkResult_ "snd_mixer_selem_set_capture_volume"
 
 {#fun snd_mixer_selem_set_playback_dB as setPlaybackDb
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , fromIntegral `Integer'
+    , `CLong'
     , negOne- `Int' } -> `Int' checkSetPlaybackDb*- #}
 
 checkSetPlaybackDb = checkResult_ "snd_mixer_selem_set_playback_dB"
@@ -397,33 +392,33 @@ checkSetPlaybackDb = checkResult_ "snd_mixer_selem_set_playback_dB"
 {#fun snd_mixer_selem_set_capture_dB as setCaptureDb
     { withSimpleElement* `SimpleElement'
     , channelToC `Channel'
-    , fromIntegral `Integer'
+    , `CLong'
     , negOne- `Int' } -> `Int' checkSetCaptureDb*- #}
 
 checkSetCaptureDb = checkResult_ "snd_mixer_selem_set_capture_dB"
 
 {#fun snd_mixer_selem_set_playback_volume_all as setPlaybackVolumeAll
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer' } -> `Int' checkSetPlaybackVolumeAll*- #}
+    , `CLong' } -> `Int' checkSetPlaybackVolumeAll*- #}
 
 checkSetPlaybackVolumeAll = checkResult_ "snd_mixer_selem_set_playback_volume_all"
 
 {#fun snd_mixer_selem_set_capture_volume_all as setCaptureVolumeAll
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer' } -> `Int' checkSetCaptureVolumeAll*- #}
+    , `CLong' } -> `Int' checkSetCaptureVolumeAll*- #}
 
 checkSetCaptureVolumeAll = checkResult_ "snd_mixer_selem_set_capture_volume_all"
 
 {#fun snd_mixer_selem_set_playback_dB_all as setPlaybackDbAll
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer'
+    , `CLong'
     , negOne- `Int' } -> `Int' checkSetPlaybackDbAll*- #}
 
 checkSetPlaybackDbAll = checkResult_ "snd_mixer_selem_set_playback_dB_all"
 
 {#fun snd_mixer_selem_set_capture_dB_all as setCaptureDbAll
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer'
+    , `CLong'
     , negOne- `Int' } -> `Int' checkSetCaptureDbAll*- #}
 
 checkSetCaptureDbAll = checkResult_ "snd_mixer_selem_set_capture_dB_all"
@@ -456,15 +451,15 @@ checkSetCaptureSwitchAll = checkResult_ "snd_mixer_selem_set_capture_switch_all"
 
 {#fun snd_mixer_selem_set_playback_volume_range as setPlaybackVolumeRange'
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer'
-    , fromIntegral `Integer' } -> `Int' checkSetPlaybackVolumeRange*- #}
+    , `CLong'
+    , `CLong' } -> `Int' checkSetPlaybackVolumeRange*- #}
 
 checkSetPlaybackVolumeRange = checkResult_ "snd_mixer_selem_set_playback_volume_range"
 
 {#fun snd_mixer_selem_set_capture_volume_range as setCaptureVolumeRange'
     { withSimpleElement* `SimpleElement'
-    , fromIntegral `Integer'
-    , fromIntegral `Integer' } -> `Int' checkSetCaptureVolumeRange*- #}
+    , `CLong'
+    , `CLong' } -> `Int' checkSetCaptureVolumeRange*- #}
 
 checkSetCaptureVolumeRange = checkResult_ "snd_mixer_selem_set_capture_volume_range"
 
