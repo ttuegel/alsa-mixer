@@ -167,14 +167,13 @@ getId e = do
 
 elements :: Mixer -> IO [(SimpleElementId, SimpleElement)]
 elements fMix = do
-    pFirst <- sndMixerFirstElem fMix
-    pLast <- sndMixerLastElem fMix
-    es <- elements' pFirst [] pLast
+    pFirst <- sndMixerFirstElem fMix -- Returns null if list of mixer-elems is empty.
+    es <- elements' pFirst []
     mapM (simpleElement fMix) es
-  where elements' pThis xs pLast | pThis == pLast = return $ pThis : xs
-                                 | otherwise = do
-                                     pNext <- sndMixerElemNext pThis
-                                     elements' pNext (pThis : xs) pLast
+  where elements' pThis xs | pThis == nullPtr = return xs
+                           | otherwise = do
+                               pNext <- sndMixerElemNext pThis
+                               elements' pNext (pThis : xs)
 
 -----------------------------------------------------------------------
 -- simpleElement
