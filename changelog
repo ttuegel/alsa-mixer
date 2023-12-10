@@ -1,3 +1,7 @@
+0.3.0.1 Thomas Tuegel <ttuegel@mailbox.org> 2023-12-09
+    * Add +cross flag to .cabal file (#8)
+    * Avoid returning [nullPtr] if mixer elements are empty (#13)
+
 0.3.0 Thomas Tuegel <ttuegel@mailbox.org> 2018-12-09
     * Use C types in exported interface (#6)
 
